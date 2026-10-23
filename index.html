@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoreo In Situ - Asistencia CS 2026</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+    body { background-color: #F4F6F9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .header-inei { background-color: #0D47A1; color: #ffffff; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .card-stats { border: none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
+    .card-stats:hover { transform: translateY(-3px); }
+    .table-container { background: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 20px; }
+    .badge-presente { background-color: #E8F5E9; color: #2E7D32; border: 1px solid #2E7D32; font-weight: bold; }
+    .badge-faltante { background-color: #FFF8E1; color: #C62828; border: 1px solid #C62828; font-weight: bold; }
+</style>
+</head>
+<body>
+
+    <!-- Header Institucional -->
+    <div class="header-inei text-center">
+        <h2>CONTROL DE ASISTENCIA CS - 2026</h2>
+        <p class="mb-0 text-light">Panel de Monitoreo In Situ • PostgreSQL (Neon Cloud) + Render</p>
+    </div>
+
+    <div class="container my-4">
+        
+        <!-- Controles y Filtros -->
+        <div class="row mb-4 g-3">
+            <div class="col-md-4">
+                <label class="form-label fw-bold text-secondary">FECHA Y TURNO:</label>
+                <select id="selectTurno" class="form-select" onchange="cargarDatos()">
+                    <option value="10">16/10/2026 • TURNO MAÑANA</option>
+                    <option value="11">16/10/2026 • TURNO TARDE</option>
+                    <option value="12">17/10/2026 • TURNO MAÑANA</option>
+                    <option value="13">17/10/2026 • TURNO TARDE</option>
+                    <option value="14">18/10/2026 • TURNO MAÑANA</option>
+                    <option value="15">18/10/2026 • TURNO TARDE</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold text-secondary">BUSCAR (DNI o NOMBRES):</label>
+                <input type="text" id="inputBuscar" class="form-control" placeholder="Ej. 42716356 o Victor..." oninput="cargarDatos()">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold text-secondary">FILTRAR ESTADO:</label>
+                <select id="selectEstado" class="form-select" onchange="cargarDatos()">
+                    <option value="TODOS">👥 Todos los participantes</option>
+                    <option value="PRESENTE">✅ Solo Presentes</option>
+                    <option value="FALTANTE">❌ Solo Faltantes</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tarjetas de Métricas -->
+        <div class="row text-center mb-4 g-3">
+            <div class="col-md-4">
+                <div class="card card-stats p-3 bg-white border-start border-primary border-4">
+                    <span class="text-muted fw-bold">META PADRÓN</span>
+                    <h2 id="lblTotal" class="text-primary fw-extrabold mb-0">165</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-stats p-3 bg-white border-start border-success border-4">
+                    <span class="text-muted fw-bold">REGISTRADOS (PRESENTES)</span>
+                    <h2 id="lblPresentes" class="text-success fw-extrabold mb-0">0</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-stats p-3 bg-white border-start border-danger border-4">
+                    <span class="text-muted fw-bold">FALTANTES</span>
+                    <h2 id="lblFaltantes" class="text-danger fw-extrabold mb-0">165</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Datos -->
+        <div class="table-container">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0 fw-bold text-dark">📋 Listado Detallado de Asistencia</h5>
+                <button class="btn btn-outline-primary btn-sm" onclick="cargarDatos()">🔄 Sincronizar Ahora</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Nº</th>
+                            <th>DNI</th>
+                            <th>Apellidos y Nombres</th>
+                            <th>Sede Regional</th>
+                            <th>Sede Jurisdiccional</th>
+                            <th>Estado</th>
+                            <th>Hora Registro</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaAsistencia">
+                        <!-- Se llena con JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Script de Conexión y Actualización en Tiempo Real -->
+    <script>
+        const API_URL = "https://api-asistencia-cs.onrender.com";
+
+        async function cargarDatos() {
+            const col = document.getElementById("selectTurno").value;
+            const buscar = document.getElementById("inputBuscar").value;
+            const estado = document.getElementById("selectEstado").value;
+
+            try {
+                const response = await fetch(`${API_URL}/api/reporte?col=${col}&buscar=${encodeURIComponent(buscar)}&estado=${estado}`);
+                const data = await response.json();
+
+                document.getElementById("lblTotal").innerText = data.total;
+                document.getElementById("lblPresentes").innerText = data.presentes;
+                document.getElementById("lblFaltantes").innerText = data.faltantes;
+
+                const tbody = document.getElementById("tablaAsistencia");
+                tbody.innerHTML = "";
+
+                if (data.asistentes.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">No se encontraron registros coincidentes.</td></tr>`;
+                    return;
+                }
+
+                data.asistentes.forEach(item => {
+                    const badgeClass = item.estado === 'PRESENTE' ? 'badge-presente' : 'badge-faltante';
+                    const iconText = item.estado === 'PRESENTE' ? 'PRESENTE ✅' : 'FALTANTE ❌';
+                    const hora = item.fecha_hora ? item.fecha_hora.split(" ")[1] : '-';
+
+                    const tr = `
+                        <tr>
+                            <td>${item.orden}</td>
+                            <td class="fw-bold">${item.dni}</td>
+                            <td>${item.apellido_paterno} ${item.apellido_materno}, ${item.nombres}</td>
+                            <td>${item.sede_regional}</td>
+                            <td>${item.sede_jurisdiccional}</td>
+                            <td><span class="badge ${badgeClass} p-2">${iconText}</span></td>
+                            <td class="fw-semibold">${hora}</td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += tr;
+                });
+
+            } catch (error) {
+                console.error("Error al conectar con la API de Render:", error);
+            }
+        }
+
+        cargarDatos();
+        setInterval(cargarDatos, 5000);
+    </script>
+
+</body>
+</html>
