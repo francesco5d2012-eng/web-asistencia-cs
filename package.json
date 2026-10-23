@@ -1,0 +1,16 @@
+{
+  "name": "api-asistencia-cs",
+  "version": "1.0.0",
+  "description": "Backend Control de Asistencia CS 2026 - INEI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "pg": "^8.11.5",
+    "socket.io": "^4.7.5"
+  }
+}

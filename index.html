@@ -4,31 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitoreo In Situ - Asistencia CS 2026</title>
-    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<style>
-    body { background-color: #F4F6F9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    .header-inei { background-color: #0D47A1; color: #ffffff; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    .card-stats { border: none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
-    .card-stats:hover { transform: translateY(-3px); }
-    .table-container { background: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 20px; }
-    .badge-presente { background-color: #E8F5E9; color: #2E7D32; border: 1px solid #2E7D32; font-weight: bold; }
-    .badge-faltante { background-color: #FFF8E1; color: #C62828; border: 1px solid #C62828; font-weight: bold; }
-</style>
+    <style>
+        body { background-color: #F4F6F9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .header-inei { background-color: #0D47A1; color: #ffffff; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .card-stats { border: none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .card-stats:hover { transform: translateY(-3px); }
+        .table-container { background: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 20px; }
+        .badge-presente { background-color: #E8F5E9; color: #2E7D32; border: 1px solid #2E7D32; font-weight: bold; }
+        .badge-faltante { background-color: #FFF8E1; color: #C62828; border: 1px solid #C62828; font-weight: bold; }
+        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .dot-online { background-color: #00E676; box-shadow: 0 0 6px #00E676; }
+        .dot-offline { background-color: #FF5252; }
+    </style>
 </head>
 <body>
 
     <!-- Header Institucional -->
     <div class="header-inei text-center">
         <h2>CONTROL DE ASISTENCIA CS - 2026</h2>
-        <p class="mb-0 text-light">Panel de Monitoreo In Situ • PostgreSQL (Neon Cloud) + Render</p>
+        <p class="mb-0 text-light">
+            <span id="socketDot" class="status-dot dot-offline"></span>
+            <span id="socketStatus">Conectando tiempo real...</span> • PostgreSQL (Neon) + Render
+        </p>
     </div>
 
     <div class="container my-4">
         
-        <!-- Controles y Filtros -->
+        <!-- Controles y Filtros (4 columnas) -->
         <div class="row mb-4 g-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label fw-bold text-secondary">FECHA Y TURNO:</label>
                 <select id="selectTurno" class="form-select" onchange="cargarDatos()">
                     <option value="10">16/10/2026 • TURNO MAÑANA</option>
@@ -39,11 +44,17 @@
                     <option value="15">18/10/2026 • TURNO TARDE</option>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <label class="form-label fw-bold text-secondary">SEDE JURISDICCIONAL:</label>
+                <select id="selectSede" class="form-select" onchange="cargarDatos()">
+                    <option value="TODAS">📍 Todas las Sedes</option>
+                </select>
+            </div>
+            <div class="col-md-3">
                 <label class="form-label fw-bold text-secondary">BUSCAR (DNI o NOMBRES):</label>
                 <input type="text" id="inputBuscar" class="form-control" placeholder="Ej. 42716356 o Victor..." oninput="cargarDatos()">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label fw-bold text-secondary">FILTRAR ESTADO:</label>
                 <select id="selectEstado" class="form-select" onchange="cargarDatos()">
                     <option value="TODOS">👥 Todos los participantes</option>
@@ -57,7 +68,7 @@
         <div class="row text-center mb-4 g-3">
             <div class="col-md-4">
                 <div class="card card-stats p-3 bg-white border-start border-primary border-4">
-                    <span class="text-muted fw-bold">META PADRÓN</span>
+                    <span class="text-muted fw-bold">META PADRÓN (FILTRADO)</span>
                     <h2 id="lblTotal" class="text-primary fw-extrabold mb-0">165</h2>
                 </div>
             </div>
@@ -77,9 +88,12 @@
 
         <!-- Tabla de Datos -->
         <div class="table-container">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                 <h5 class="mb-0 fw-bold text-dark">📋 Listado Detallado de Asistencia</h5>
-                <button class="btn btn-outline-primary btn-sm" onclick="cargarDatos()">🔄 Sincronizar Ahora</button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success btn-sm fw-bold" onclick="descargarExcel()">📊 Exportar Excel</button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="cargarDatos()">🔄 Sincronizar</button>
+                </div>
             </div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
@@ -92,28 +106,100 @@
                             <th>Sede Jurisdiccional</th>
                             <th>Estado</th>
                             <th>Hora Registro</th>
+                            <th>Incidencia</th>
                         </tr>
                     </thead>
-                    <tbody id="tablaAsistencia">
-                        <!-- Se llena con JavaScript -->
-                    </tbody>
+                    <tbody id="tablaAsistencia"></tbody>
                 </table>
             </div>
         </div>
-
     </div>
 
-    <!-- Script de Conexión y Actualización en Tiempo Real -->
+    <!-- Modal para Registrar Incidencia -->
+    <div class="modal fade" id="modalIncidencia" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Registrar Incidencia / Justificación</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="incDni">
+                    <p class="fw-bold mb-2" id="incNombreParticipante"></p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Tipo de Incidencia:</label>
+                        <select id="incTipo" class="form-select">
+                            <option value="Tardanza">Tardanza</option>
+                            <option value="Falta Justificada">Falta Justificada</option>
+                            <option value="Permiso">Permiso Especial</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Estado:</label>
+                        <select id="incEstado" class="form-select">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Aprobado">Aprobado</option>
+                            <option value="Rechazado">Rechazado</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Observaciones:</label>
+                        <textarea id="incObs" class="form-control" rows="2" placeholder="Detalle el motivo..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarIncidencia()">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts: Bootstrap + Socket.io -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         const API_URL = "https://api-asistencia-cs.onrender.com";
+        let modalInstancia;
 
+        // 1. Conectar WebSockets en tiempo real
+        const socket = io(API_URL);
+        socket.on("connect", () => {
+            document.getElementById("socketDot").className = "status-dot dot-online";
+            document.getElementById("socketStatus").innerText = "Tiempo Real Activo";
+        });
+        socket.on("disconnect", () => {
+            document.getElementById("socketDot").className = "status-dot dot-offline";
+            document.getElementById("socketStatus").innerText = "Reconectando...";
+        });
+        socket.on("actualizacion_asistencia", () => {
+            cargarDatos(); // Actualiza al instante cuando alguien ficha en la App
+        });
+
+        // 2. Cargar catálogo de Sedes Jurisdiccionales al abrir la web
+        async function cargarSedes() {
+            try {
+                const res = await fetch(`${API_URL}/api/sedes`);
+                const sedes = await res.json();
+                const select = document.getElementById("selectSede");
+                sedes.forEach(sede => {
+                    select.innerHTML += `<option value="${sede}">${sede}</option>`;
+                });
+            } catch (e) {
+                console.error("Error cargando sedes:", e);
+            }
+        }
+
+        // 3. Cargar Tabla y Contadores
         async function cargarDatos() {
             const col = document.getElementById("selectTurno").value;
+            const sede = document.getElementById("selectSede").value;
             const buscar = document.getElementById("inputBuscar").value;
             const estado = document.getElementById("selectEstado").value;
 
             try {
-                const response = await fetch(`${API_URL}/api/reporte?col=${col}&buscar=${encodeURIComponent(buscar)}&estado=${estado}`);
+                const url = `${API_URL}/api/reporte?col=${col}&sede=${encodeURIComponent(sede)}&buscar=${encodeURIComponent(buscar)}&estado=${estado}`;
+                const response = await fetch(url);
                 const data = await response.json();
 
                 document.getElementById("lblTotal").innerText = data.total;
@@ -123,8 +209,8 @@
                 const tbody = document.getElementById("tablaAsistencia");
                 tbody.innerHTML = "";
 
-                if (data.asistentes.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">No se encontraron registros coincidentes.</td></tr>`;
+                if (!data.asistentes || data.asistentes.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">No se encontraron registros coincidentes.</td></tr>`;
                     return;
                 }
 
@@ -132,29 +218,71 @@
                     const badgeClass = item.estado === 'PRESENTE' ? 'badge-presente' : 'badge-faltante';
                     const iconText = item.estado === 'PRESENTE' ? 'PRESENTE ✅' : 'FALTANTE ❌';
                     const hora = item.fecha_hora ? item.fecha_hora.split(" ")[1] : '-';
+                    const nombreCompleto = `${item.apellido_paterno} ${item.apellido_materno}, ${item.nombres}`;
+                    const btnIncidencia = item.incidencia 
+                        ? `<span class="badge bg-warning text-dark me-1">${item.incidencia}</span>` 
+                        : '';
 
-                    const tr = `
+                    tbody.innerHTML += `
                         <tr>
                             <td>${item.orden}</td>
                             <td class="fw-bold">${item.dni}</td>
-                            <td>${item.apellido_paterno} ${item.apellido_materno}, ${item.nombres}</td>
+                            <td>${nombreCompleto}</td>
                             <td>${item.sede_regional}</td>
                             <td>${item.sede_jurisdiccional}</td>
                             <td><span class="badge ${badgeClass} p-2">${iconText}</span></td>
                             <td class="fw-semibold">${hora}</td>
+                            <td>
+                                ${btnIncidencia}
+                                <button class="btn btn-outline-secondary btn-sm" onclick="abrirModalIncidencia('${item.dni}', '${nombreCompleto}')">📝</button>
+                            </td>
                         </tr>
                     `;
-                    tbody.innerHTML += tr;
                 });
-
             } catch (error) {
-                console.error("Error al conectar con la API de Render:", error);
+                console.error("Error al conectar con Render:", error);
             }
         }
 
-        cargarDatos();
-        setInterval(cargarDatos, 5000);
-    </script>
+        // 4. Descargar Excel con los filtros actuales
+        function descargarExcel() {
+            const col = document.getElementById("selectTurno").value;
+            const sede = document.getElementById("selectSede").value;
+            const buscar = document.getElementById("inputBuscar").value;
+            const estado = document.getElementById("selectEstado").value;
+            window.open(`${API_URL}/api/reportes/excel?col=${col}&sede=${encodeURIComponent(sede)}&buscar=${encodeURIComponent(buscar)}&estado=${estado}`, '_blank');
+        }
 
+        // 5. Gestión del Modal de Incidencias
+        function abrirModalIncidencia(dni, nombre) {
+            document.getElementById("incDni").value = dni;
+            document.getElementById("incNombreParticipante").innerText = `${dni} - ${nombre}`;
+            document.getElementById("incObs").value = "";
+            if (!modalInstancia) {
+                modalInstancia = new bootstrap.Modal(document.getElementById('modalIncidencia'));
+            }
+            modalInstancia.show();
+        }
+
+        async function guardarIncidencia() {
+            const dni = document.getElementById("incDni").value;
+            const col_turno = document.getElementById("selectTurno").value;
+            const tipo = document.getElementById("incTipo").value;
+            const estado = document.getElementById("incEstado").value;
+            const observaciones = document.getElementById("incObs").value;
+
+            await fetch(`${API_URL}/api/incidencias`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dni, col_turno, tipo, estado, observaciones })
+            });
+            modalInstancia.hide();
+            cargarDatos();
+        }
+
+        // Inicializar
+        cargarSedes();
+        cargarDatos();
+    </script>
 </body>
 </html>
